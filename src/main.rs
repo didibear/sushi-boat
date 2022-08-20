@@ -1,4 +1,5 @@
 use bevy::{prelude::*, window::close_on_esc};
+use bevy_inspector_egui::WorldInspectorPlugin;
 use bevy_rapier2d::prelude::*;
 
 fn main() {
@@ -13,6 +14,7 @@ fn main() {
         .insert_resource(Msaa::default())
         .insert_resource(Spawner(Timer::from_seconds(2., true)))
         .add_plugins(DefaultPlugins)
+        .add_plugin(WorldInspectorPlugin::new())
         .add_plugin(RapierPhysicsPlugin::<NoUserData>::pixels_per_meter(100.))
         .add_plugin(RapierDebugRenderPlugin::default())
         .add_startup_system(setup_camera)
