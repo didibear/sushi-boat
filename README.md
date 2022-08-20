@@ -2,7 +2,6 @@
 
 Little game for the [Bevy Jam #2](https://itch.io/jam/bevy-jam-2)
 
-
 ## Game
 
 Stack the highest amount of pieces in the board.
