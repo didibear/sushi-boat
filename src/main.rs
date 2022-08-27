@@ -44,7 +44,7 @@ fn setup_ground(mut commands: Commands) {
 
 struct Spawner(Timer);
 
-#[derive(Component, Clone, Copy)]
+#[derive(Component, Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 enum Item {
     // Basic Items
     Rice,
@@ -62,6 +62,17 @@ impl Item {
         const BASIC_ITEMS: [Item; 4] = [Item::Rice, Item::SeaWeed, Item::Avocado, Item::Fish];
 
         BASIC_ITEMS[(time.seconds_since_startup() * 1000.) as usize % BASIC_ITEMS.len()]
+    }
+
+    fn can_combine(item1: Self, item2: Self) -> Option<Item> {
+        use Item::*;
+
+        match sorted([item1, item2]) {
+            [Rice, SeaWeed] => Some(Onigiri),
+            [Rice, Fish] => Some(Sushi),
+            [Avocado, Onigiri] => Some(Maki),
+            _ => None,
+        }
     }
 }
 
@@ -138,11 +149,10 @@ fn combine_items(
     let collisions = collision_events
         .iter()
         .filter_map(|event| match event {
-            CollisionEvent::Started(e1, e2, ..) => Some([e1, e2]),
+            CollisionEvent::Started(e1, e2, ..) => Some(sorted([e1, e2])),
             _ => None,
         })
-        .map(sorted) // Remove double-counted collisions
-        .collect::<HashSet<_>>();
+        .collect::<HashSet<_>>(); // Remove double-counted collisions
 
     let collided_items = collisions.into_iter().filter_map(|[e1, e2]| {
         let [i1, i2] = items.get_many([*e1, *e2]).ok()?;
@@ -150,27 +160,39 @@ fn combine_items(
     });
 
     for ((entity1, (item1, transform1)), (entity2, (item2, transform2))) in collided_items {
-        match (item1, item2) {
-            (Item::Rice, Item::SeaWeed) | (Item::SeaWeed, Item::Rice) => {
-                grabbed_item.0 = None;
-                commands.entity(*entity1).despawn_recursive();
-                commands.entity(*entity2).despawn_recursive();
+        if let Some(combined_item) = Item::can_combine(*item1, *item2) {
+            grabbed_item.0 = None;
+            commands.entity(*entity1).despawn_recursive();
+            commands.entity(*entity2).despawn_recursive();
 
-                let in_between_translation = (transform1.translation + transform2.translation) / 2.;
+            let in_between_translation = (transform1.translation + transform2.translation) / 2.;
 
-                spawn_item(
-                    &mut commands,
-                    Item::Onigiri,
-                    in_between_translation.truncate(),
-                );
-            }
-            _ => {}
+            spawn_item(
+                &mut commands,
+                combined_item,
+                in_between_translation.truncate(),
+            );
         }
     }
 }
 
-fn sorted<const N: usize, T: Ord + Clone>(pair: [&T; N]) -> [&T; N] {
-    let mut pair = pair.clone();
-    pair.sort();
-    pair
+fn sorted<const N: usize, T: Ord>(mut array: [T; N]) -> [T; N] {
+    array.sort();
+    array
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn item_can_combine() {
+        use Item::*;
+
+        let result = Item::can_combine(Rice, Fish);
+
+        assert_eq!(result, Some(Sushi));
+        assert_eq!(result, Item::can_combine(Fish, Rice));
+        //                                   ^ swapped items
+    }
 }
