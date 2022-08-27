@@ -1,4 +1,4 @@
-use bevy::{prelude::*, window::close_on_esc};
+use bevy::{prelude::*, utils::HashSet, window::close_on_esc, input::mouse};
 use bevy_inspector_egui::WorldInspectorPlugin;
 use bevy_rapier2d::prelude::*;
 use mouse_tracking::{MousePosition, MouseTrackingPlugin};
@@ -28,6 +28,7 @@ fn main() {
         .add_system(drag_and_drop_item)
         .add_system(close_on_esc)
         .add_system(spawn_shapes)
+        .add_system(combine_items)
         .run();
 }
 
@@ -45,10 +46,15 @@ struct Spawner(Timer);
 
 #[derive(Component)]
 enum Item {
+    // Basic Items
     Rice,
     SeaWeed,
     Avocado,
     Fish,
+    // Combined 1
+    Onigiri,
+    Maki,
+    Sushi,
 }
 
 fn spawn_shapes(mut commands: Commands, mut spawner: ResMut<Spawner>, time: Res<Time>) {
@@ -103,4 +109,52 @@ fn drag_and_drop_item(
 
         transform.translation = Vec3::from((mouse_position.0, Z));
     }
+}
+
+fn combine_items(
+    mut commands: Commands,
+    mut collision_events: EventReader<CollisionEvent>,
+    items: Query<&Item>,
+    mouse_position: Res<MousePosition>,
+    mut grabbed_item: ResMut<GrabbedItem>,
+
+) {
+    let collisions = collision_events
+        .iter()
+        .filter_map(|event| match event {
+            CollisionEvent::Started(e1, e2, ..) => Some([e1, e2]),
+            _ => None,
+        })
+        .map(sorted) // Remove double-counted collisions
+        .collect::<HashSet<_>>();
+
+    for [item1, item2] in collisions {
+        match (
+            items.get_component::<Item>(*item1),
+            items.get_component::<Item>(*item2),
+        ) {
+            (Ok(Item::Rice), Ok(Item::SeaWeed)) | (Ok(Item::SeaWeed), Ok(Item::Rice)) => {
+                grabbed_item.0 = None;
+                commands.entity(*item1).despawn_recursive();
+                commands.entity(*item2).despawn_recursive();
+
+                let translation = Vec3::from((mouse_position.0, Z));
+
+                commands
+                    .spawn()
+                    .insert(Item::Onigiri)
+                    .insert_bundle(TransformBundle::from(Transform::from_translation(translation)))
+                    .insert(RigidBody::Dynamic)
+                    .insert(Collider::ball(40.))
+                    .insert(ActiveEvents::COLLISION_EVENTS);
+            }
+            _ => {}
+        }
+    }
+}
+
+fn sorted<const N: usize, T: Ord + Clone>(pair: [&T; N]) -> [&T; N] {
+    let mut pair = pair.clone();
+    pair.sort();
+    pair
 }
