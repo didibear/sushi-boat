@@ -1,4 +1,4 @@
-use bevy::{prelude::*, utils::HashSet, window::close_on_esc, input::mouse};
+use bevy::{prelude::*, utils::HashSet, window::close_on_esc};
 use bevy_inspector_egui::WorldInspectorPlugin;
 use bevy_rapier2d::prelude::*;
 use mouse_tracking::{MousePosition, MouseTrackingPlugin};
@@ -27,7 +27,7 @@ fn main() {
         .add_startup_system(setup_ground)
         .add_system(drag_and_drop_item)
         .add_system(close_on_esc)
-        .add_system(spawn_shapes)
+        .add_system(spawn_items)
         .add_system(combine_items)
         .run();
 }
@@ -44,7 +44,7 @@ fn setup_ground(mut commands: Commands) {
 
 struct Spawner(Timer);
 
-#[derive(Component)]
+#[derive(Component, Clone, Copy)]
 enum Item {
     // Basic Items
     Rice,
@@ -57,27 +57,45 @@ enum Item {
     Sushi,
 }
 
-fn spawn_shapes(mut commands: Commands, mut spawner: ResMut<Spawner>, time: Res<Time>) {
-    if spawner.0.tick(time.delta()).just_finished() {
-        let (item, collider) = generate_item(&time);
+impl Item {
+    fn random_basic(time: &Time) -> Item {
+        const BASIC_ITEMS: [Item; 4] = [Item::Rice, Item::SeaWeed, Item::Avocado, Item::Fish];
 
-        commands
-            .spawn()
-            .insert(item)
-            .insert_bundle(TransformBundle::from(Transform::from_xyz(0., 100., 0.)))
-            .insert(RigidBody::Dynamic)
-            .insert(collider)
-            .insert(ActiveEvents::COLLISION_EVENTS);
+        BASIC_ITEMS[(time.seconds_since_startup() * 1000.) as usize % BASIC_ITEMS.len()]
     }
 }
 
-fn generate_item(time: &Time) -> (Item, Collider) {
-    match (time.seconds_since_startup() * 1000.) as i32 % 4 {
-        0 => (Item::SeaWeed, Collider::cuboid(30., 30.)),
-        1 => (Item::Rice, Collider::ball(30.)),
-        2 => (Item::Fish, Collider::capsule_x(15., 30.)),
-        _ => (Item::Avocado, Collider::round_cuboid(10., 10., 0.3)),
+impl From<Item> for Collider {
+    fn from(item: Item) -> Self {
+        match item {
+            Item::Rice => Collider::ball(30.),
+            Item::SeaWeed => Collider::cuboid(30., 30.),
+            Item::Avocado => Collider::round_cuboid(10., 10., 0.3),
+            Item::Fish => Collider::capsule_x(15., 30.),
+            Item::Onigiri => Collider::ball(40.),
+            Item::Maki => Collider::cuboid(30., 40.),
+            Item::Sushi => Collider::capsule_x(30., 30.),
+        }
     }
+}
+
+fn spawn_items(mut commands: Commands, mut spawner: ResMut<Spawner>, time: Res<Time>) {
+    if spawner.0.tick(time.delta()).just_finished() {
+        let item = Item::random_basic(&time);
+        spawn_item(&mut commands, item, Vec2::new(0., 100.));
+    }
+}
+
+fn spawn_item(commands: &mut Commands, item: Item, translation: Vec2) {
+    let transform = Transform::from_translation(Vec3::from((translation, Z)));
+
+    commands
+        .spawn()
+        .insert(item)
+        .insert_bundle(TransformBundle::from(transform))
+        .insert(RigidBody::Dynamic)
+        .insert(Collider::from(item))
+        .insert(ActiveEvents::COLLISION_EVENTS);
 }
 
 #[derive(Debug, Default)]
@@ -117,7 +135,6 @@ fn combine_items(
     items: Query<&Item>,
     mouse_position: Res<MousePosition>,
     mut grabbed_item: ResMut<GrabbedItem>,
-
 ) {
     let collisions = collision_events
         .iter()
@@ -138,15 +155,7 @@ fn combine_items(
                 commands.entity(*item1).despawn_recursive();
                 commands.entity(*item2).despawn_recursive();
 
-                let translation = Vec3::from((mouse_position.0, Z));
-
-                commands
-                    .spawn()
-                    .insert(Item::Onigiri)
-                    .insert_bundle(TransformBundle::from(Transform::from_translation(translation)))
-                    .insert(RigidBody::Dynamic)
-                    .insert(Collider::ball(40.))
-                    .insert(ActiveEvents::COLLISION_EVENTS);
+                spawn_item(&mut commands, Item::Onigiri, mouse_position.0);
             }
             _ => {}
         }
