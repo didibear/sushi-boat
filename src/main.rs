@@ -44,27 +44,33 @@ fn setup_ground(mut commands: Commands) {
 struct Spawner(Timer);
 
 #[derive(Component)]
-struct Item;
+enum Item {
+    Rice,
+    SeaWeed,
+    Avocado,
+    Fish,
+}
 
-fn spawn_shapes(
-    mut commands: Commands,
-    mut spawner: ResMut<Spawner>,
-    time: Res<Time>,
-) {
+fn spawn_shapes(mut commands: Commands, mut spawner: ResMut<Spawner>, time: Res<Time>) {
     if spawner.0.tick(time.delta()).just_finished() {
-        let shape = match (time.seconds_since_startup() * 1000.) as i32 % 4 {
-            0 => Collider::cuboid(30., 30.),
-            1 => Collider::ball(30.),
-            2 => Collider::capsule_x(30., 30.),
-            _ => Collider::round_cuboid(30., 30., 0.1),
-        };
+        let (item, collider) = generate_item(&time);
 
         commands
             .spawn()
-            .insert(Item)
+            .insert(item)
             .insert_bundle(TransformBundle::from(Transform::from_xyz(0., 100., 0.)))
             .insert(RigidBody::Dynamic)
-            .insert(shape);
+            .insert(collider)
+            .insert(ActiveEvents::COLLISION_EVENTS);
+    }
+}
+
+fn generate_item(time: &Time) -> (Item, Collider) {
+    match (time.seconds_since_startup() * 1000.) as i32 % 4 {
+        0 => (Item::SeaWeed, Collider::cuboid(30., 30.)),
+        1 => (Item::Rice, Collider::ball(30.)),
+        2 => (Item::Fish, Collider::capsule_x(15., 30.)),
+        _ => (Item::Avocado, Collider::round_cuboid(10., 10., 0.3)),
     }
 }
 
