@@ -143,27 +143,24 @@ fn drag_and_drop_item(
 fn combine_items(
     mut commands: Commands,
     mut collision_events: EventReader<CollisionEvent>,
-    items: Query<(&Item, &Transform)>,
+    items: Query<(Entity, &Item, &Transform)>,
     mut grabbed_item: ResMut<GrabbedItem>,
 ) {
-    let collisions = collision_events
+    let collided_items = collision_events
         .iter()
         .filter_map(|event| match event {
             CollisionEvent::Started(e1, e2, ..) => Some(sorted([e1, e2])),
             _ => None,
         })
-        .collect::<HashSet<_>>(); // Remove double-counted collisions
+        .collect::<HashSet<_>>() // Remove double-counted collisions
+        .into_iter()
+        .filter_map(|[e1, e2]| items.get_many([*e1, *e2]).ok());
 
-    let collided_items = collisions.into_iter().filter_map(|[e1, e2]| {
-        let [i1, i2] = items.get_many([*e1, *e2]).ok()?;
-        Some(((e1, i1), (e2, i2)))
-    });
-
-    for ((entity1, (item1, transform1)), (entity2, (item2, transform2))) in collided_items {
+    for [(entity1, item1, transform1), (entity2, item2, transform2)] in collided_items {
         if let Some(combined_item) = Item::can_combine(*item1, *item2) {
             grabbed_item.0 = None;
-            commands.entity(*entity1).despawn_recursive();
-            commands.entity(*entity2).despawn_recursive();
+            commands.entity(entity1).despawn_recursive();
+            commands.entity(entity2).despawn_recursive();
 
             let in_between_translation = (transform1.translation + transform2.translation) / 2.;
 
