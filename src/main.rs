@@ -1,3 +1,5 @@
+#![deny(clippy::all, clippy::nursery, clippy::unwrap_used)]
+
 use bevy::{prelude::*, utils::HashSet, window::close_on_esc};
 use bevy_inspector_egui::WorldInspectorPlugin;
 use bevy_rapier2d::prelude::*;
@@ -58,13 +60,13 @@ enum Item {
 }
 
 impl Item {
-    fn random_basic(time: &Time) -> Item {
+    fn random_basic(time: &Time) -> Self {
         const BASIC_ITEMS: [Item; 4] = [Item::Rice, Item::SeaWeed, Item::Avocado, Item::Fish];
 
         BASIC_ITEMS[(time.seconds_since_startup() * 1000.) as usize % BASIC_ITEMS.len()]
     }
 
-    fn can_combine(item1: Self, item2: Self) -> Option<Item> {
+    fn can_combine(item1: Self, item2: Self) -> Option<Self> {
         use Item::*;
 
         match sorted([item1, item2]) {
@@ -79,13 +81,13 @@ impl Item {
 impl From<Item> for Collider {
     fn from(item: Item) -> Self {
         match item {
-            Item::Rice => Collider::ball(30.),
-            Item::SeaWeed => Collider::cuboid(30., 30.),
-            Item::Avocado => Collider::round_cuboid(10., 10., 0.3),
-            Item::Fish => Collider::capsule_x(15., 30.),
-            Item::Onigiri => Collider::ball(40.),
-            Item::Maki => Collider::cuboid(30., 40.),
-            Item::Sushi => Collider::capsule_x(30., 30.),
+            Item::Rice => Self::ball(30.),
+            Item::SeaWeed => Self::cuboid(30., 30.),
+            Item::Avocado => Self::round_cuboid(10., 10., 0.3),
+            Item::Fish => Self::capsule_x(15., 30.),
+            Item::Onigiri => Self::ball(40.),
+            Item::Maki => Self::cuboid(30., 40.),
+            Item::Sushi => Self::capsule_x(30., 30.),
         }
     }
 }
