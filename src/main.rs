@@ -18,7 +18,7 @@ fn main() {
         })
         .insert_resource(ClearColor(Color::BLACK))
         .insert_resource(Msaa::default())
-        .insert_resource(Spawner(Timer::from_seconds(1., true)))
+        .insert_resource(Spawner(Timer::from_seconds(2., true)))
         .insert_resource(GrabbedItem::default())
         .add_plugins(DefaultPlugins)
         .add_plugin(MouseTrackingPlugin)
@@ -40,8 +40,11 @@ fn setup_camera(mut commands: Commands) {
 
 fn setup_ground(mut commands: Commands) {
     commands
-        .spawn_bundle(TransformBundle::from(Transform::from_xyz(0., -250., Z)))
-        .insert(Collider::cuboid(250., 20.));
+        .spawn()
+        .insert(Name::new("Ground"))
+        .insert_bundle(TransformBundle::from(Transform::from_xyz(0., -250., Z)))
+        .insert(Collider::cuboid(250., 20.))
+        .insert(Friction::new(1.2));
 }
 
 struct Spawner(Timer);
@@ -83,7 +86,7 @@ impl From<Item> for Collider {
         match item {
             Item::Rice => Self::ball(30.),
             Item::SeaWeed => Self::cuboid(30., 30.),
-            Item::Avocado => Self::round_cuboid(10., 10., 0.3),
+            Item::Avocado => Self::capsule_x(10., 20.),
             Item::Fish => Self::capsule_x(15., 30.),
             Item::Onigiri => Self::ball(40.),
             Item::Maki => Self::cuboid(30., 40.),
@@ -95,7 +98,7 @@ impl From<Item> for Collider {
 fn spawn_items(mut commands: Commands, mut spawner: ResMut<Spawner>, time: Res<Time>) {
     if spawner.0.tick(time.delta()).just_finished() {
         let item = Item::random_basic(&time);
-        spawn_item(&mut commands, item, Vec2::new(0., 100.));
+        spawn_item(&mut commands, item, Vec2::new(0., 200.));
     }
 }
 
@@ -104,10 +107,14 @@ fn spawn_item(commands: &mut Commands, item: Item, translation: Vec2) {
 
     commands
         .spawn()
+        .insert(Name::new("Item"))
         .insert(item)
         .insert_bundle(TransformBundle::from(transform))
         .insert(RigidBody::Dynamic)
         .insert(Collider::from(item))
+        .insert(Velocity::zero())
+        .insert(Ccd::enabled())
+        .insert(GravityScale(3.))
         .insert(ActiveEvents::COLLISION_EVENTS);
 }
 
@@ -117,28 +124,30 @@ struct GrabbedItem(Option<Entity>);
 fn drag_and_drop_item(
     mouse: Res<Input<MouseButton>>,
     mouse_position: Res<MousePosition>,
-    mut items: Query<(Entity, &mut Transform, &Collider), With<Item>>,
+    mut items: Query<(Entity, &Collider, &Transform, &mut Velocity), With<Item>>,
     mut grabbed_item: ResMut<GrabbedItem>,
 ) {
     if mouse.just_released(MouseButton::Left) {
-        grabbed_item.0 = None;
+        if let Some(item) = grabbed_item.0.take() {
+            let (.., mut velocity) = items.get_mut(item).expect("item has body");
+            velocity.linvel = velocity.linvel.clamp_length_max(500.); // Cap speed when the player throw the item
+        }
         return;
     }
     if mouse.just_pressed(MouseButton::Left) {
         grabbed_item.0 = items
             .iter()
-            .find(|(_, transform, collider)| {
+            .find(|(_, collider, transform, _)| {
                 collider.contains_local_point(mouse_position.0 - transform.translation.truncate())
             })
             .map(|(entity, ..)| entity);
     }
 
     if let Some(item) = grabbed_item.0 {
-        let mut transform = items
-            .get_component_mut::<Transform>(item)
-            .expect("items contains transform");
-
-        transform.translation = Vec3::from((mouse_position.0, Z));
+        // Move the grabbed item to the mouse cursor using the velocity
+        let (.., transform, mut velocity) = items.get_mut(item).expect("item has body");
+        velocity.linvel = (mouse_position.0 - transform.translation.truncate()) * 10.;
+        velocity.angvel *= 0.9; // Smoothly decelerate the rotations
     }
 }
 
