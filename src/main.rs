@@ -19,7 +19,7 @@ fn main() {
         })
         .insert_resource(ClearColor(Color::BLACK))
         .insert_resource(Msaa::default())
-        .insert_resource(Spawner(Timer::from_seconds(2., true)))
+        .insert_resource(Spawner(Timer::from_seconds(3., true)))
         .insert_resource(GrabbedItem::default())
         .add_plugins(DefaultPlugins)
         .add_plugin(MouseTrackingPlugin)
@@ -30,7 +30,7 @@ fn main() {
         .add_startup_system(setup_ground)
         .add_system(drag_and_drop_item)
         .add_system(close_on_esc)
-        .add_system(spawn_items)
+        .add_system(spawn_incoming_items)
         .add_system(combine_items)
         .run();
 }
@@ -48,8 +48,6 @@ fn setup_ground(mut commands: Commands) {
         .insert(Friction::new(1.2));
 }
 
-struct Spawner(Timer);
-
 #[derive(Component, Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 enum Item {
     // Basic Items
@@ -64,11 +62,7 @@ enum Item {
 }
 
 impl Item {
-    fn random_basic() -> Self {
-        const BASIC_ITEMS: [Item; 4] = [Item::Rice, Item::SeaWeed, Item::Avocado, Item::Fish];
-
-        BASIC_ITEMS[rand::thread_rng().gen_range(0..BASIC_ITEMS.len())]
-    }
+    const BASIC: [Self; 4] = [Self::Rice, Self::SeaWeed, Self::Avocado, Self::Fish];
 
     fn can_combine(item1: Self, item2: Self) -> Option<Self> {
         use Item::*;
@@ -96,14 +90,27 @@ impl From<Item> for Collider {
     }
 }
 
-fn spawn_items(mut commands: Commands, mut spawner: ResMut<Spawner>, time: Res<Time>) {
+struct Spawner(Timer);
+
+fn spawn_incoming_items(mut commands: Commands, mut spawner: ResMut<Spawner>, time: Res<Time>) {
     if spawner.0.tick(time.delta()).just_finished() {
-        let item = Item::random_basic();
-        spawn_item(&mut commands, item, Vec2::new(0., 200.));
+        let mut rng = rand::thread_rng();
+        let item = Item::BASIC[rng.gen_range(0..Item::BASIC.len())];
+
+        let side = [-1., 1.][rng.gen_range(0..2)]; // left or right
+
+        let translation = Vec2::new(450. * side, rng.gen_range(0.0..300.0));
+
+        let velocity = Velocity {
+            linvel: Vec2::new(-side, 1.) * rng.gen_range(150.0..200.0),
+            angvel: rng.gen_range(-10.0..10.0),
+        };
+
+        spawn_item(&mut commands, item, translation, velocity);
     }
 }
 
-fn spawn_item(commands: &mut Commands, item: Item, translation: Vec2) {
+fn spawn_item(commands: &mut Commands, item: Item, translation: Vec2, velocity: Velocity) {
     let transform = Transform::from_translation(Vec3::from((translation, Z)));
 
     commands
@@ -113,7 +120,7 @@ fn spawn_item(commands: &mut Commands, item: Item, translation: Vec2) {
         .insert_bundle(TransformBundle::from(transform))
         .insert(RigidBody::Dynamic)
         .insert(Collider::from(item))
-        .insert(Velocity::zero())
+        .insert(velocity)
         .insert(Ccd::enabled())
         .insert(GravityScale(3.))
         .insert(ActiveEvents::COLLISION_EVENTS);
@@ -180,6 +187,7 @@ fn combine_items(
                 &mut commands,
                 combined_item,
                 in_between_translation.truncate(),
+                Velocity::zero(),
             );
         }
     }
