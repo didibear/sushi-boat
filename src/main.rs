@@ -50,15 +50,17 @@ fn setup_ground(mut commands: Commands) {
 
 #[derive(Component, Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 enum Item {
-    // Basic Items
+    // Basic
     Rice,
     SeaWeed,
     Avocado,
     Fish,
-    // Combined 1
+    // Level 1
     Onigiri,
     Maki,
     Sushi,
+    // Level 2
+    MakiSushiTray
 }
 
 impl Item {
@@ -71,6 +73,7 @@ impl Item {
             [Rice, SeaWeed] => Some(Onigiri),
             [Rice, Fish] => Some(Sushi),
             [Avocado, Onigiri] => Some(Maki),
+            [Maki, Sushi] => Some(MakiSushiTray),
             _ => None,
         }
     }
@@ -86,6 +89,7 @@ impl From<Item> for Collider {
             Item::Onigiri => Self::ball(40.),
             Item::Maki => Self::cuboid(30., 40.),
             Item::Sushi => Self::capsule_x(30., 30.),
+            Item::MakiSushiTray => Self::cuboid(50., 50.),
         }
     }
 }
