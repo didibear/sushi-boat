@@ -4,6 +4,7 @@ use bevy::{prelude::*, utils::HashSet, window::close_on_esc};
 use bevy_inspector_egui::WorldInspectorPlugin;
 use bevy_rapier2d::prelude::*;
 use mouse_tracking::{MousePosition, MouseTrackingPlugin};
+use rand::Rng;
 
 mod mouse_tracking;
 const Z: f32 = 0.;
@@ -63,10 +64,10 @@ enum Item {
 }
 
 impl Item {
-    fn random_basic(time: &Time) -> Self {
+    fn random_basic() -> Self {
         const BASIC_ITEMS: [Item; 4] = [Item::Rice, Item::SeaWeed, Item::Avocado, Item::Fish];
 
-        BASIC_ITEMS[(time.seconds_since_startup() * 1000.) as usize % BASIC_ITEMS.len()]
+        BASIC_ITEMS[rand::thread_rng().gen_range(0..BASIC_ITEMS.len())]
     }
 
     fn can_combine(item1: Self, item2: Self) -> Option<Self> {
@@ -97,7 +98,7 @@ impl From<Item> for Collider {
 
 fn spawn_items(mut commands: Commands, mut spawner: ResMut<Spawner>, time: Res<Time>) {
     if spawner.0.tick(time.delta()).just_finished() {
-        let item = Item::random_basic(&time);
+        let item = Item::random_basic();
         spawn_item(&mut commands, item, Vec2::new(0., 200.));
     }
 }
