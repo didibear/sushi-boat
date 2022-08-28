@@ -26,13 +26,26 @@ fn main() {
         .add_plugin(WorldInspectorPlugin::new())
         .add_plugin(RapierPhysicsPlugin::<NoUserData>::pixels_per_meter(100.))
         .add_plugin(RapierDebugRenderPlugin::default())
-        .add_startup_system(setup_camera)
-        .add_startup_system(setup_ground)
-        .add_system(drag_and_drop_item)
-        .add_system(close_on_esc)
-        .add_system(spawn_incoming_items)
-        .add_system(combine_items)
+        .add_state(GameState::GamePlay)
+        .add_system_set(
+            SystemSet::on_enter(GameState::GamePlay)
+                .with_system(setup_camera)
+                .with_system(setup_ground),
+        )
+        .add_system_set(
+            SystemSet::on_update(GameState::GamePlay)
+                .with_system(spawn_incoming_items)
+                .with_system(drag_and_drop_item)
+                .with_system(combine_items)
+                .with_system(close_on_esc),
+        )
         .run();
+}
+
+#[derive(Clone, Eq, PartialEq, Debug, Hash)]
+enum GameState {
+    AssetLoading,
+    GamePlay,
 }
 
 fn setup_camera(mut commands: Commands) {
