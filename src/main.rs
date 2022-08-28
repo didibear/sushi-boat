@@ -1,6 +1,7 @@
 #![deny(clippy::all, clippy::nursery, clippy::unwrap_used)]
 
 use bevy::{prelude::*, utils::HashSet, window::close_on_esc};
+use bevy_asset_loader::prelude::*;
 use bevy_inspector_egui::WorldInspectorPlugin;
 use bevy_rapier2d::prelude::*;
 use mouse_tracking::{MousePosition, MouseTrackingPlugin};
@@ -26,7 +27,12 @@ fn main() {
         .add_plugin(WorldInspectorPlugin::new())
         .add_plugin(RapierPhysicsPlugin::<NoUserData>::pixels_per_meter(100.))
         .add_plugin(RapierDebugRenderPlugin::default())
-        .add_state(GameState::GamePlay)
+        .add_state(GameState::AssetLoading)
+        .add_loading_state(
+            LoadingState::new(GameState::AssetLoading)
+                .continue_to_state(GameState::GamePlay)
+                .with_collection::<ItemAssets>(),
+        )
         .add_system_set(
             SystemSet::on_enter(GameState::GamePlay)
                 .with_system(setup_camera)
@@ -36,9 +42,9 @@ fn main() {
             SystemSet::on_update(GameState::GamePlay)
                 .with_system(spawn_incoming_items)
                 .with_system(drag_and_drop_item)
-                .with_system(combine_items)
-                .with_system(close_on_esc),
+                .with_system(combine_items),
         )
+        .add_system(close_on_esc)
         .run();
 }
 
@@ -73,7 +79,7 @@ enum Item {
     Maki,
     Sushi,
     // Level 2
-    MakiSushiTray
+    MakiSushiTray,
 }
 
 impl Item {
@@ -107,9 +113,53 @@ impl From<Item> for Collider {
     }
 }
 
+#[derive(AssetCollection)]
+struct ItemAssets {
+    #[asset(path = "sprites/rice.png")]
+    rice: Handle<Image>,
+    #[asset(path = "sprites/sea-weed.png")]
+    sea_weed: Handle<Image>,
+    #[asset(path = "sprites/fish.png")]
+    fish: Handle<Image>,
+    #[asset(path = "sprites/avocado.png")]
+    avocado: Handle<Image>,
+    #[asset(path = "sprites/onigiri.png")]
+    onigiri: Handle<Image>,
+    #[asset(path = "sprites/maki.png")]
+    maki: Handle<Image>,
+    #[asset(path = "sprites/sushi.png")]
+    sushi: Handle<Image>,
+    #[asset(path = "sprites/maki-sushi-tray.png")]
+    maki_sushi_tray: Handle<Image>,
+}
+
+impl ItemAssets {
+    fn get(&self, item: Item) -> (Handle<Image>, Sprite) {
+        let sprite = Sprite {
+            custom_size: Some(Vec2::new(50., 50.)),
+            ..default()
+        };
+        match item {
+            Item::Rice => (self.rice.clone(), sprite),
+            Item::SeaWeed => (self.sea_weed.clone(), sprite),
+            Item::Avocado => (self.avocado.clone(), sprite),
+            Item::Fish => (self.fish.clone(), sprite),
+            Item::Onigiri => (self.onigiri.clone(), sprite),
+            Item::Maki => (self.maki.clone(), sprite),
+            Item::Sushi => (self.sushi.clone(), sprite),
+            Item::MakiSushiTray => (self.maki_sushi_tray.clone(), sprite),
+        }
+    }
+}
+
 struct Spawner(Timer);
 
-fn spawn_incoming_items(mut commands: Commands, mut spawner: ResMut<Spawner>, time: Res<Time>) {
+fn spawn_incoming_items(
+    mut commands: Commands,
+    mut spawner: ResMut<Spawner>,
+    time: Res<Time>,
+    item_assets: Res<ItemAssets>,
+) {
     if spawner.0.tick(time.delta()).just_finished() {
         let mut rng = rand::thread_rng();
         let item = Item::BASIC[rng.gen_range(0..Item::BASIC.len())];
@@ -123,18 +173,31 @@ fn spawn_incoming_items(mut commands: Commands, mut spawner: ResMut<Spawner>, ti
             angvel: rng.gen_range(-10.0..10.0),
         };
 
-        spawn_item(&mut commands, item, translation, velocity);
+        spawn_item(&mut commands, item, translation, velocity, &item_assets);
     }
 }
 
-fn spawn_item(commands: &mut Commands, item: Item, translation: Vec2, velocity: Velocity) {
+fn spawn_item(
+    commands: &mut Commands,
+    item: Item,
+    translation: Vec2,
+    velocity: Velocity,
+    item_assets: &Res<ItemAssets>,
+) {
     let transform = Transform::from_translation(Vec3::from((translation, Z)));
+    let (texture, sprite) = item_assets.get(item);
 
     commands
         .spawn()
         .insert(Name::new("Item"))
         .insert(item)
-        .insert_bundle(TransformBundle::from(transform))
+        .insert_bundle(SpriteBundle {
+            texture,
+            transform,
+            sprite,
+            ..default()
+        })
+        // .insert_bundle(TransformBundle::from(transform))
         .insert(RigidBody::Dynamic)
         .insert(Collider::from(item))
         .insert(velocity)
@@ -181,6 +244,7 @@ fn combine_items(
     mut collision_events: EventReader<CollisionEvent>,
     items: Query<(Entity, &Item, &Transform)>,
     mut grabbed_item: ResMut<GrabbedItem>,
+    item_assets: Res<ItemAssets>,
 ) {
     let collided_items = collision_events
         .iter()
@@ -205,6 +269,7 @@ fn combine_items(
                 combined_item,
                 in_between_translation.truncate(),
                 Velocity::zero(),
+                &item_assets,
             );
         }
     }

@@ -27,6 +27,11 @@ cargo build --release --target wasm32-unknown-unknown
 wasm-bindgen --out-dir ./dist/target --target web ./target/wasm32-unknown-unknown/release/stacker.wasm
 ```
 
+3. Copy assets to the `dist` folder
+```sh
+cp -r assets dist
+```
+
 ## Publish
 
 - Start a local web server
