@@ -227,7 +227,7 @@ fn spawn_item(
         .insert(Collider::from(item))
         .insert(velocity)
         .insert(Ccd::enabled())
-        .insert(GravityScale(3.))
+        .insert(GravityScale(3.5))
         .insert(ActiveEvents::COLLISION_EVENTS);
 }
 
