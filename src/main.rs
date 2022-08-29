@@ -6,6 +6,8 @@ use bevy_inspector_egui::WorldInspectorPlugin;
 use bevy_rapier2d::prelude::*;
 use item::{Item, ItemAssets};
 use mouse_tracking::{MousePosition, MouseTrackingPlugin};
+use rand::seq::IteratorRandom;
+use rand::seq::SliceRandom;
 use rand::Rng;
 
 mod item;
@@ -23,7 +25,7 @@ fn main() {
         })
         .insert_resource(ClearColor(Color::BLACK))
         .insert_resource(Msaa::default())
-        .insert_resource(Spawner(Timer::from_seconds(2., true)))
+        .insert_resource(Spawner::default())
         .insert_resource(GrabbedItem::default())
         .add_plugins(DefaultPlugins)
         .add_plugin(MouseTrackingPlugin)
@@ -79,7 +81,7 @@ fn setup_camera_and_background(mut commands: Commands, game_assets: Res<GameAsse
 
     commands.spawn_bundle(
         TextBundle::from_section(
-            "Goal: Get the boat !",
+            "Goal: Create the boat !",
             TextStyle {
                 font: game_assets.font.clone(),
                 font_size: 36.0,
@@ -143,7 +145,35 @@ fn setup_ground_and_ceiling(mut commands: Commands) {
         )));
 }
 
-struct Spawner(Timer);
+struct Spawner {
+    timer: Timer,
+    first_items: HashSet<Item>,
+}
+
+impl Default for Spawner {
+    fn default() -> Self {
+        Self {
+            timer: Timer::from_seconds(2.5, true),
+            first_items: Item::BASIC.into_iter().collect(),
+        }
+    }
+}
+
+impl Spawner {
+    fn generate_items(&mut self, rng: &mut impl Rng) -> Item {
+        if self.first_items.is_empty() {
+            *Item::BASIC.choose(rng).expect("basic item")
+        } else {
+            let item = self
+                .first_items
+                .iter()
+                .choose(rng)
+                .expect("first item")
+                .clone();
+            self.first_items.take(&item).expect("first item")
+        }
+    }
+}
 
 fn spawn_incoming_items(
     mut commands: Commands,
@@ -151,11 +181,11 @@ fn spawn_incoming_items(
     time: Res<Time>,
     item_assets: Res<ItemAssets>,
 ) {
-    if spawner.0.tick(time.delta()).just_finished() {
+    if spawner.timer.tick(time.delta()).just_finished() {
         let mut rng = rand::thread_rng();
-        let item = Item::BASIC[rng.gen_range(0..Item::BASIC.len())];
+        let item = spawner.generate_items(&mut rng);
 
-        let side = [-1., 1.][rng.gen_range(0..2)]; // left or right
+        let side = [-1., 1.].choose(&mut rng).expect("random side");
 
         let translation = Vec2::new(450. * side, rng.gen_range(0.0..300.0));
 
@@ -214,7 +244,7 @@ fn drag_and_drop_item(
 ) {
     if mouse.just_released(MouseButton::Left) {
         if let Some(item) = grabbed_item.0.take() {
-            let (.., mut velocity) = items.get_mut(item).expect("item has body");
+            let (.., mut velocity) = items.get_mut(item).expect("item body");
             velocity.linvel = velocity.linvel.clamp_length_max(500.); // Cap speed when the player throw the item
         }
         return;
@@ -238,7 +268,7 @@ fn drag_and_drop_item(
 
     if let Some(item) = grabbed_item.0 {
         // Move the grabbed item to the mouse cursor using the velocity
-        let (.., transform, mut velocity) = items.get_mut(item).expect("item has body");
+        let (.., transform, mut velocity) = items.get_mut(item).expect("item body");
         velocity.linvel = (mouse_position.0 - transform.translation.truncate()) * 10.;
         velocity.angvel *= 0.9; // Smoothly decelerate the rotations
     }
