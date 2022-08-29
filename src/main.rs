@@ -146,35 +146,66 @@ impl From<Item> for Vec2 {
 
 #[derive(AssetCollection)]
 struct ItemAssets {
+    // Sprites
     #[asset(path = "sprites/rice.png")]
-    rice: Handle<Image>,
+    rice_sprite: Handle<Image>,
     #[asset(path = "sprites/sea-weed.png")]
-    sea_weed: Handle<Image>,
+    sea_weed_sprite: Handle<Image>,
     #[asset(path = "sprites/fish.png")]
-    fish: Handle<Image>,
+    fish_sprite: Handle<Image>,
     #[asset(path = "sprites/avocado.png")]
-    avocado: Handle<Image>,
+    avocado_sprite: Handle<Image>,
     #[asset(path = "sprites/onigiri.png")]
-    onigiri: Handle<Image>,
+    onigiri_sprite: Handle<Image>,
     #[asset(path = "sprites/maki.png")]
-    maki: Handle<Image>,
+    maki_sprite: Handle<Image>,
     #[asset(path = "sprites/sushi.png")]
-    sushi: Handle<Image>,
+    sushi_sprite: Handle<Image>,
     #[asset(path = "sprites/maki-sushi-tray.png")]
-    maki_sushi_tray: Handle<Image>,
+    maki_sushi_tray_sprite: Handle<Image>,
+    // Sounds
+    #[asset(path = "audio/rice.ogg")]
+    rice_sound: Handle<AudioSource>,
+    #[asset(path = "audio/sea-weed.ogg")]
+    sea_weed_sound: Handle<AudioSource>,
+    #[asset(path = "audio/fish.ogg")]
+    fish_sound: Handle<AudioSource>,
+    #[asset(path = "audio/avocado.ogg")]
+    avocado_sound: Handle<AudioSource>,
+    #[asset(path = "audio/onigiri.ogg")]
+    onigiri_sound: Handle<AudioSource>,
+    #[asset(path = "audio/maki.ogg")]
+    maki_sound: Handle<AudioSource>,
+    #[asset(path = "audio/sushi.ogg")]
+    sushi_sound: Handle<AudioSource>,
+    #[asset(path = "audio/maki-sushi-tray.ogg")]
+    maki_sushi_tray_sound: Handle<AudioSource>,
 }
 
 impl ItemAssets {
-    fn get(&self, item: Item) -> Handle<Image> {
+    fn sprite_for(&self, item: Item) -> Handle<Image> {
         match item {
-            Item::Rice => self.rice.clone(),
-            Item::SeaWeed => self.sea_weed.clone(),
-            Item::Avocado => self.avocado.clone(),
-            Item::Fish => self.fish.clone(),
-            Item::Onigiri => self.onigiri.clone(),
-            Item::Maki => self.maki.clone(),
-            Item::Sushi => self.sushi.clone(),
-            Item::MakiSushiTray => self.maki_sushi_tray.clone(),
+            Item::Rice => self.rice_sprite.clone(),
+            Item::SeaWeed => self.sea_weed_sprite.clone(),
+            Item::Avocado => self.avocado_sprite.clone(),
+            Item::Fish => self.fish_sprite.clone(),
+            Item::Onigiri => self.onigiri_sprite.clone(),
+            Item::Maki => self.maki_sprite.clone(),
+            Item::Sushi => self.sushi_sprite.clone(),
+            Item::MakiSushiTray => self.maki_sushi_tray_sprite.clone(),
+        }
+    }
+
+    fn sound_for(&self, item: Item) -> Handle<AudioSource> {
+        match item {
+            Item::Rice => self.rice_sound.clone(),
+            Item::SeaWeed => self.sea_weed_sound.clone(),
+            Item::Avocado => self.avocado_sound.clone(),
+            Item::Fish => self.fish_sound.clone(),
+            Item::Onigiri => self.onigiri_sound.clone(),
+            Item::Maki => self.maki_sound.clone(),
+            Item::Sushi => self.sushi_sound.clone(),
+            Item::MakiSushiTray => self.maki_sushi_tray_sound.clone(),
         }
     }
 }
@@ -213,7 +244,7 @@ fn spawn_item(
 ) {
     let transform = Transform::from_translation(Vec3::from((translation, Z)));
 
-    let texture = item_assets.get(item);
+    let texture = item_assets.sprite_for(item);
     let sprite = Sprite {
         custom_size: Some(Vec2::from(item)),
         ..default()
@@ -243,8 +274,10 @@ struct GrabbedItem(Option<Entity>);
 fn drag_and_drop_item(
     mouse: Res<Input<MouseButton>>,
     mouse_position: Res<MousePosition>,
-    mut items: Query<(Entity, &Collider, &Transform, &mut Velocity), With<Item>>,
+    mut items: Query<(Entity, &Item, &Collider, &Transform, &mut Velocity), With<Item>>,
     mut grabbed_item: ResMut<GrabbedItem>,
+    audio: Res<Audio>,
+    item_assets: Res<ItemAssets>,
 ) {
     if mouse.just_released(MouseButton::Left) {
         if let Some(item) = grabbed_item.0.take() {
@@ -256,10 +289,18 @@ fn drag_and_drop_item(
     if mouse.just_pressed(MouseButton::Left) {
         grabbed_item.0 = items
             .iter()
-            .find(|(_, collider, transform, _)| {
+            .find(|(_, _, collider, transform, _)| {
                 collider.contains_local_point(mouse_position.0 - transform.translation.truncate())
             })
             .map(|(entity, ..)| entity);
+
+        if let Some(entity) = grabbed_item.0 {
+            let item = items
+                .get_component::<Item>(entity)
+                .expect("entity has item");
+
+            audio.play(item_assets.sound_for(*item));
+        }
     }
 
     if let Some(item) = grabbed_item.0 {
@@ -276,6 +317,7 @@ fn combine_items(
     items: Query<(Entity, &Item, &Transform)>,
     mut grabbed_item: ResMut<GrabbedItem>,
     item_assets: Res<ItemAssets>,
+    audio: Res<Audio>,
 ) {
     let collided_items = collision_events
         .iter()
@@ -302,6 +344,7 @@ fn combine_items(
                 Velocity::zero(),
                 &item_assets,
             );
+            audio.play(item_assets.sound_for(combined_item));
         }
     }
 }
