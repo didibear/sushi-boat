@@ -282,18 +282,3 @@ fn sorted<const N: usize, T: Ord>(mut array: [T; N]) -> [T; N] {
     array
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn item_can_combine() {
-        use Item::*;
-
-        let result = Item::can_combine(Rice, Fish);
-
-        assert_eq!(result, Some(Sushi));
-        assert_eq!(result, Item::can_combine(Fish, Rice));
-        //                                   ^ swapped items
-    }
-}
