@@ -45,3 +45,9 @@ basic-http-server dist
 ```sh
 zip dist.zip dist/**/*
 ```
+
+
+## Licence
+
+Code is licensed under MIT or Apache-2.0.  
+Assets are licensed under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/).
