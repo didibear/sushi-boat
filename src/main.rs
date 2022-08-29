@@ -23,7 +23,7 @@ fn main() {
         })
         .insert_resource(ClearColor(Color::BLACK))
         .insert_resource(Msaa::default())
-        .insert_resource(Spawner(Timer::from_seconds(3., true)))
+        .insert_resource(Spawner(Timer::from_seconds(2., true)))
         .insert_resource(GrabbedItem::default())
         .add_plugins(DefaultPlugins)
         .add_plugin(MouseTrackingPlugin)
@@ -40,7 +40,7 @@ fn main() {
         .add_system_set(
             SystemSet::on_enter(GameState::GamePlay)
                 .with_system(setup_camera_and_background)
-                .with_system(setup_ground),
+                .with_system(setup_ground_and_ceiling),
         )
         .add_system_set(
             SystemSet::on_update(GameState::GamePlay)
@@ -99,7 +99,8 @@ fn setup_camera_and_background(mut commands: Commands, game_assets: Res<GameAsse
     );
 }
 
-fn setup_ground(mut commands: Commands) {
+fn setup_ground_and_ceiling(mut commands: Commands) {
+    let ground_color = Color::rgb(0.8, 0.6, 0.3); // Brown
     commands
         .spawn()
         .insert(Name::new("Ground"))
@@ -108,12 +109,38 @@ fn setup_ground(mut commands: Commands) {
         .insert_bundle(SpriteBundle {
             transform: Transform::from_xyz(0., -300., Z),
             sprite: Sprite {
-                color: Color::rgb(0.8, 0.6, 0.3), // Brown
+                color: ground_color,
                 custom_size: Some(Vec2::new(300., 25.) * 2.),
                 ..default()
             },
             ..default()
         });
+
+    for side in [1., -1.] {
+        commands
+            .spawn()
+            .insert(Name::new("Ground border"))
+            .insert(Collider::cuboid(15., 30.))
+            .insert(Friction::new(1.2))
+            .insert_bundle(SpriteBundle {
+                transform: Transform::from_xyz(285. * side, -275., Z),
+                sprite: Sprite {
+                    color: ground_color,
+                    custom_size: Some(Vec2::new(15., 30.) * 2.),
+                    ..default()
+                },
+                ..default()
+            });
+    }
+
+    commands
+        .spawn()
+        .insert(Name::new("Ceiling"))
+        .insert(Collider::cuboid(800., 20.))
+        .insert(Friction::new(1.2))
+        .insert_bundle(TransformBundle::from_transform(Transform::from_xyz(
+            0., 420., Z,
+        )));
 }
 
 struct Spawner(Timer);
@@ -281,4 +308,3 @@ fn sorted<const N: usize, T: Ord>(mut array: [T; N]) -> [T; N] {
     array.sort();
     array
 }
-
