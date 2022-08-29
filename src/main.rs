@@ -48,6 +48,7 @@ fn main() {
             SystemSet::on_update(GameState::GamePlay)
                 .with_system(spawn_incoming_items)
                 .with_system(drag_and_drop_item)
+                .with_system(despawn_felt_items)
                 .with_system(combine_items),
         )
         .add_system(close_on_esc)
@@ -313,6 +314,14 @@ fn combine_items(
             if combined_item == Item::Boat {
                 spawn_win_text(&mut commands, &game_assets);
             }
+        }
+    }
+}
+
+fn despawn_felt_items(mut commands: Commands, items: Query<(Entity, &Transform)>) {
+    for (item, transform) in &items {
+        if transform.translation.y < -600. {
+            commands.entity(item).despawn_recursive();
         }
     }
 }
