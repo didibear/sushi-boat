@@ -62,6 +62,8 @@ enum GameState {
 struct GameAssets {
     #[asset(path = "sprites/background.jpg")]
     background: Handle<Image>,
+    #[asset(path = "FiraSans-Bold.ttf")]
+    font: Handle<Font>,
 }
 
 fn setup_camera_and_background(mut commands: Commands, game_assets: Res<GameAssets>) {
@@ -74,6 +76,27 @@ fn setup_camera_and_background(mut commands: Commands, game_assets: Res<GameAsse
             texture: game_assets.background.clone(),
             ..default()
         });
+
+    commands.spawn_bundle(
+        TextBundle::from_section(
+            "Goal: Get the boat !",
+            TextStyle {
+                font: game_assets.font.clone(),
+                font_size: 36.0,
+                color: Color::WHITE,
+                ..default()
+            },
+        )
+        .with_style(Style {
+            align_self: AlignSelf::FlexEnd,
+            margin: UiRect {
+                left: Val::Percent(3.),
+                top: Val::Percent(2.),
+                ..default()
+            },
+            ..default()
+        }),
+    );
 }
 
 fn setup_ground(mut commands: Commands) {
@@ -200,6 +223,7 @@ fn combine_items(
     items: Query<(Entity, &Item, &Transform)>,
     mut grabbed_item: ResMut<GrabbedItem>,
     item_assets: Res<ItemAssets>,
+    game_assets: Res<GameAssets>,
     audio: Res<Audio>,
 ) {
     let collided_items = collision_events
@@ -228,8 +252,29 @@ fn combine_items(
                 &item_assets,
             );
             audio.play(item_assets.sound_for(combined_item));
+
+            if combined_item == Item::Boat {
+                spawn_win_text(&mut commands, &game_assets);
+            }
         }
     }
+}
+
+fn spawn_win_text(commands: &mut Commands, game_assets: &GameAssets) {
+    commands.spawn_bundle(
+        TextBundle::from_section(
+            "You win !",
+            TextStyle {
+                font: game_assets.font.clone(),
+                font_size: 80.0,
+                color: Color::WHITE,
+            },
+        )
+        .with_style(Style {
+            align_self: AlignSelf::FlexStart,
+            ..default()
+        }),
+    );
 }
 
 fn sorted<const N: usize, T: Ord>(mut array: [T; N]) -> [T; N] {
