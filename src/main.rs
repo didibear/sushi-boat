@@ -111,7 +111,7 @@ fn spawn_incoming_items(
 
         let velocity = Velocity {
             linvel: Vec2::new(-side, 1.) * rng.gen_range(150.0..200.0),
-            angvel: rng.gen_range(-10.0..10.0),
+            angvel: rng.gen_range(-5.0..5.0),
         };
 
         spawn_item(&mut commands, item, translation, velocity, &item_assets);
