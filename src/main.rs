@@ -80,13 +80,13 @@ fn setup_ground(mut commands: Commands) {
     commands
         .spawn()
         .insert(Name::new("Ground"))
-        .insert(Collider::cuboid(250., 20.))
+        .insert(Collider::cuboid(300., 25.))
         .insert(Friction::new(1.2))
         .insert_bundle(SpriteBundle {
-            transform: Transform::from_xyz(0., -250., Z),
+            transform: Transform::from_xyz(0., -300., Z),
             sprite: Sprite {
                 color: Color::rgb(0.8, 0.6, 0.3), // Brown
-                custom_size: Some(Vec2::new(250., 20.) * 2.),
+                custom_size: Some(Vec2::new(300., 25.) * 2.),
                 ..default()
             },
             ..default()
