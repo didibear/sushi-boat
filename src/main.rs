@@ -123,15 +123,23 @@ impl Item {
 
 impl From<Item> for Collider {
     fn from(item: Item) -> Self {
+        let size = Vec2::from(item) * 0.4;
+
+        Self::cuboid(size.x, size.y)
+    }
+}
+
+impl From<Item> for Vec2 {
+    fn from(item: Item) -> Self {
         match item {
-            Item::Rice => Self::ball(30.),
-            Item::SeaWeed => Self::cuboid(30., 30.),
-            Item::Avocado => Self::capsule_x(10., 20.),
-            Item::Fish => Self::capsule_x(15., 30.),
-            Item::Onigiri => Self::ball(40.),
-            Item::Maki => Self::cuboid(30., 40.),
-            Item::Sushi => Self::capsule_x(30., 30.),
-            Item::MakiSushiTray => Self::cuboid(50., 50.),
+            Item::Rice => Self::new(200., 212.) * 0.5,
+            Item::SeaWeed => Self::new(200., 186.) * 0.5,
+            Item::Avocado => Self::new(200., 212.) * 0.5,
+            Item::Fish => Self::new(200., 113.) * 0.65,
+            Item::Onigiri => Self::new(200., 197.) * 0.60,
+            Item::Maki => Self::new(200., 205.) * 0.65,
+            Item::Sushi => Self::new(200., 180.) * 0.75,
+            Item::MakiSushiTray => Self::new(400., 336.) * 0.65,
         }
     }
 }
@@ -157,20 +165,16 @@ struct ItemAssets {
 }
 
 impl ItemAssets {
-    fn get(&self, item: Item) -> (Handle<Image>, Sprite) {
-        let sprite = Sprite {
-            custom_size: Some(Vec2::new(50., 50.)),
-            ..default()
-        };
+    fn get(&self, item: Item) -> Handle<Image> {
         match item {
-            Item::Rice => (self.rice.clone(), sprite),
-            Item::SeaWeed => (self.sea_weed.clone(), sprite),
-            Item::Avocado => (self.avocado.clone(), sprite),
-            Item::Fish => (self.fish.clone(), sprite),
-            Item::Onigiri => (self.onigiri.clone(), sprite),
-            Item::Maki => (self.maki.clone(), sprite),
-            Item::Sushi => (self.sushi.clone(), sprite),
-            Item::MakiSushiTray => (self.maki_sushi_tray.clone(), sprite),
+            Item::Rice => self.rice.clone(),
+            Item::SeaWeed => self.sea_weed.clone(),
+            Item::Avocado => self.avocado.clone(),
+            Item::Fish => self.fish.clone(),
+            Item::Onigiri => self.onigiri.clone(),
+            Item::Maki => self.maki.clone(),
+            Item::Sushi => self.sushi.clone(),
+            Item::MakiSushiTray => self.maki_sushi_tray.clone(),
         }
     }
 }
@@ -208,7 +212,12 @@ fn spawn_item(
     item_assets: &Res<ItemAssets>,
 ) {
     let transform = Transform::from_translation(Vec3::from((translation, Z)));
-    let (texture, sprite) = item_assets.get(item);
+
+    let texture = item_assets.get(item);
+    let sprite = Sprite {
+        custom_size: Some(Vec2::from(item)),
+        ..default()
+    };
 
     commands
         .spawn()
@@ -220,7 +229,6 @@ fn spawn_item(
             sprite,
             ..default()
         })
-        // .insert_bundle(TransformBundle::from(transform))
         .insert(RigidBody::Dynamic)
         .insert(Collider::from(item))
         .insert(velocity)
