@@ -16,43 +16,47 @@ mod mouse_tracking;
 const Z: f32 = 1.;
 
 fn main() {
-    App::new()
-        .insert_resource(WindowDescriptor {
-            title: "Stacker".to_string(),
-            width: 800.,
-            height: 800.,
-            ..default()
-        })
-        .insert_resource(ClearColor(Color::BLACK))
-        .insert_resource(Msaa::default())
-        .insert_resource(Spawner::default())
-        .insert_resource(GrabbedItem::default())
-        .add_plugins(DefaultPlugins)
-        .add_plugin(MouseTrackingPlugin)
-        .add_plugin(WorldInspectorPlugin::new())
-        .add_plugin(RapierPhysicsPlugin::<NoUserData>::pixels_per_meter(100.))
-        .add_plugin(RapierDebugRenderPlugin::default())
-        .add_state(GameState::AssetLoading)
-        .add_loading_state(
-            LoadingState::new(GameState::AssetLoading)
-                .continue_to_state(GameState::GamePlay)
-                .with_collection::<ItemAssets>()
-                .with_collection::<GameAssets>(),
-        )
-        .add_system_set(
-            SystemSet::on_enter(GameState::GamePlay)
-                .with_system(setup_camera_and_background)
-                .with_system(setup_ground_and_ceiling),
-        )
-        .add_system_set(
-            SystemSet::on_update(GameState::GamePlay)
-                .with_system(spawn_incoming_items)
-                .with_system(drag_and_drop_item)
-                .with_system(despawn_felt_items)
-                .with_system(combine_items),
-        )
-        .add_system(close_on_esc)
-        .run();
+    let mut app = App::new();
+
+    app.insert_resource(WindowDescriptor {
+        title: "SushiBoat".to_string(),
+        width: 800.,
+        height: 800.,
+        ..default()
+    })
+    .insert_resource(ClearColor(Color::BLACK))
+    .insert_resource(Msaa::default())
+    .insert_resource(Spawner::default())
+    .insert_resource(GrabbedItem::default())
+    .add_plugins(DefaultPlugins)
+    .add_plugin(MouseTrackingPlugin)
+    .add_plugin(RapierPhysicsPlugin::<NoUserData>::pixels_per_meter(100.))
+    .add_state(GameState::AssetLoading)
+    .add_loading_state(
+        LoadingState::new(GameState::AssetLoading)
+            .continue_to_state(GameState::GamePlay)
+            .with_collection::<ItemAssets>()
+            .with_collection::<GameAssets>(),
+    )
+    .add_system_set(
+        SystemSet::on_enter(GameState::GamePlay)
+            .with_system(setup_camera_and_background)
+            .with_system(setup_ground_and_ceiling),
+    )
+    .add_system_set(
+        SystemSet::on_update(GameState::GamePlay)
+            .with_system(spawn_incoming_items)
+            .with_system(drag_and_drop_item)
+            .with_system(despawn_felt_items)
+            .with_system(combine_items),
+    );
+
+    if cfg!(debug_assertions) {
+        app.add_plugin(WorldInspectorPlugin::new())
+            .add_plugin(RapierDebugRenderPlugin::default())
+            .add_system(close_on_esc);
+    }
+    app.run();
 }
 
 #[derive(Clone, Eq, PartialEq, Debug, Hash)]
