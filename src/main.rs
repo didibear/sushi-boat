@@ -8,7 +8,7 @@ use mouse_tracking::{MousePosition, MouseTrackingPlugin};
 use rand::Rng;
 
 mod mouse_tracking;
-const Z: f32 = 0.;
+const Z: f32 = 1.;
 
 fn main() {
     App::new()
@@ -31,11 +31,12 @@ fn main() {
         .add_loading_state(
             LoadingState::new(GameState::AssetLoading)
                 .continue_to_state(GameState::GamePlay)
-                .with_collection::<ItemAssets>(),
+                .with_collection::<ItemAssets>()
+                .with_collection::<GameAssets>(),
         )
         .add_system_set(
             SystemSet::on_enter(GameState::GamePlay)
-                .with_system(setup_camera)
+                .with_system(setup_camera_and_background)
                 .with_system(setup_ground),
         )
         .add_system_set(
@@ -54,8 +55,22 @@ enum GameState {
     GamePlay,
 }
 
-fn setup_camera(mut commands: Commands) {
+#[derive(AssetCollection)]
+struct GameAssets {
+    #[asset(path = "sprites/background.jpg")]
+    background: Handle<Image>,
+}
+
+fn setup_camera_and_background(mut commands: Commands, game_assets: Res<GameAssets>) {
     commands.spawn_bundle(Camera2dBundle::default());
+
+    commands
+        .spawn()
+        .insert(Name::new("Background"))
+        .insert_bundle(SpriteBundle {
+            texture: game_assets.background.clone(),
+            ..default()
+        });
 }
 
 fn setup_ground(mut commands: Commands) {
@@ -67,7 +82,7 @@ fn setup_ground(mut commands: Commands) {
         .insert_bundle(SpriteBundle {
             transform: Transform::from_xyz(0., -250., Z),
             sprite: Sprite {
-                color: Color::BEIGE,
+                color: Color::rgb(0.8, 0.6, 0.3), // Brown
                 custom_size: Some(Vec2::new(250., 20.) * 2.),
                 ..default()
             },
